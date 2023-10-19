@@ -2,13 +2,9 @@
 	mov	ax, cs
 	mov	ds, ax
 	mov	es, ax
-	mov cx, 5			; 打印字符串100次
+	mov cx, 100
 PrintStr100times:
-	mov ax, 5
-	sub ax, cx
-	push ax				; 将行号压栈
 	call DispStr		; 调用显示字符串例程
-	pop	ax				; 清栈
 	loop PrintStr100times
 	jmp	$				; 无限循环
 DispStr:
@@ -17,8 +13,6 @@ DispStr:
 	mov	cx, 21			; CX = 串长度
 	mov	ax, 01301h		; AH = 13,  AL = 01h
 	mov	bx, 000ch		; 页号为0(BH = 0) 黑底红字(BL = 0Ch,高亮)
-	mov si, sp
-	mov dh, byte [ss:si]		; 设置行号
 	mov	dl, 0
 	int	10h				; 10h 号中断
 	ret
