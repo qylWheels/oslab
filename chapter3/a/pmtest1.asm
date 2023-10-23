@@ -68,7 +68,7 @@ LABEL_BEGIN:
 	mov	cr0, eax
 
 	; 真正进入保护模式
-	jmp	dword SelectorCode32:0	; 执行这一句会把 SelectorCode32 装入 cs,
+	jmp	SelectorCode32:0	; 执行这一句会把 SelectorCode32 装入 cs,
 					; 并跳转到 Code32Selector:0  处
 ; END of [SECTION .s16]
 
