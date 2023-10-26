@@ -214,6 +214,7 @@ LABEL_SEG_CODE32:
 	call	DispReturn
 
 	; Load LDT
+	xchg bx, bx
 	mov	ax, SelectorLDT
 	lldt	ax
 
