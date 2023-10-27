@@ -231,6 +231,7 @@ LABEL_SEG_CODE32:
 	call	DispReturn
 
 	; 测试调用门（无特权级变换），将打印字母 'C'
+	xchg bx, bx
 	call	SelectorCallGateTest:0
 	;call	SelectorCodeDest:0
 
