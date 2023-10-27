@@ -23,9 +23,12 @@ LABEL_DESC_STACK3:     Descriptor 0,      TopOfStack3, DA_DRWA+DA_32+DA_DPL3
 LABEL_DESC_LDT:        Descriptor 0,         LDTLen-1, DA_LDT    ; LDT
 LABEL_DESC_TSS:        Descriptor 0,          TSSLen-1, DA_386TSS
 LABEL_DESC_VIDEO:      Descriptor 0B8000h,     0ffffh, DA_DRW+DA_DPL3
+; 我自己加的
+LABEL_DESC_WRITE:      Descriptor 0,  SegWriteLen - 1, DA_C + DA_32
 
 ; 门                               目标选择子,偏移,DCount, 属性
 LABEL_CALL_GATE_TEST: Gate SelectorCodeDest,   0,     0, DA_386CGate+DA_DPL3
+
 ; GDT 结束
 
 GdtLen		equ	$ - LABEL_GDT	; GDT长度
@@ -44,6 +47,7 @@ SelectorStack3		equ	LABEL_DESC_STACK3	- LABEL_GDT + SA_RPL3
 SelectorLDT		equ	LABEL_DESC_LDT		- LABEL_GDT
 SelectorTSS		equ	LABEL_DESC_TSS		- LABEL_GDT
 SelectorVideo		equ	LABEL_DESC_VIDEO	- LABEL_GDT
+SelectorWrite		equ LABEL_DESC_WRITE - LABEL_GDT
 
 SelectorCallGateTest	equ	LABEL_CALL_GATE_TEST	- LABEL_GDT + SA_RPL3
 ; END of [SECTION .gdt]
@@ -230,6 +234,26 @@ LABEL_BEGIN:
 	mov	byte [LABEL_DESC_TSS + 4], al
 	mov	byte [LABEL_DESC_TSS + 7], ah
 
+	; 初始化Write描述符
+	xor	eax, eax
+	mov	ax, ds
+	shl	eax, 4
+	add	eax, LABEL_WRITE
+	mov	word [LABEL_DESC_WRITE + 2], ax
+	shr	eax, 16
+	mov	byte [LABEL_DESC_WRITE + 4], al
+	mov	byte [LABEL_DESC_WRITE + 7], ah
+
+	; 初始化Print描述符（在LDT中）
+	xor	eax, eax
+	mov	ax, ds
+	shl	eax, 4
+	add	eax, LABEL_PRINT
+	mov	word [LABEL_LDT_DESC_PRINT + 2], ax
+	shr	eax, 16
+	mov	byte [LABEL_LDT_DESC_PRINT + 4], al
+	mov	byte [LABEL_LDT_DESC_PRINT + 7], ah
+
 	; 为加载 GDTR 作准备
 	xor	eax, eax
 	mov	ax, ds
@@ -281,6 +305,13 @@ LABEL_REAL_ENTRY:		; 从保护模式跳回到实模式就到了这里
 [BITS	32]
 
 LABEL_SEG_CODE32:
+	; Load LDT
+	xchg bx, bx
+	mov	ax, SelectorLDT
+	lldt	ax
+
+	jmp SelectorWrite:0
+
 	mov	ax, SelectorData
 	mov	ds, ax			; 数据段选择子
 	mov	ax, SelectorVideo
@@ -324,10 +355,6 @@ LABEL_SEG_CODE32:
 	; 测试调用门（无特权级变换），将打印字母 'C'
 	call	SelectorCallGateTest:0
 	;call	SelectorCodeDest:0
-
-	; Load LDT
-	mov	ax, SelectorLDT
-	lldt	ax
 
 	jmp	SelectorLDTCodeA:0	; 跳入局部任务，将打印字母 'L'。
 
@@ -402,11 +429,13 @@ ALIGN	32
 LABEL_LDT:
 ;                                         段基址       段界限     ,   属性
 LABEL_LDT_DESC_CODEA:	Descriptor	       0,     CodeALen - 1,   DA_C + DA_32	; Code, 32 位
+LABEL_LDT_DESC_PRINT:	Descriptor         0,  SegPrintLen - 1,   DA_C + DA_32
 
 LDTLen		equ	$ - LABEL_LDT
 
 ; LDT 选择子
 SelectorLDTCodeA	equ	LABEL_LDT_DESC_CODEA	- LABEL_LDT + SA_TIL
+SelectorPrint		equ LABEL_LDT_DESC_PRINT - LABEL_LDT + SA_TIL
 ; END of [SECTION .ldt]
 
 
@@ -447,3 +476,47 @@ LABEL_CODE_RING3:
 SegCodeRing3Len	equ	$ - LABEL_CODE_RING3
 ; END of [SECTION .ring3]
 
+; 向数据段中写字符串
+[SECTION .write]
+ALIGN 32
+[BITS 32]
+LABEL_WRITE:
+	mov ax, SelectorData	; 数据段选择子
+	mov es, ax
+	mov byte es:[0], '1'
+	mov byte es:[1], '1'
+	mov byte es:[2], '4'
+	mov byte es:[3], '5'
+	mov byte es:[4], '1'
+	mov byte es:[5], '4'
+	mov byte es:[6], 0
+	jmp SelectorPrint:0
+
+SegWriteLen equ $ - LABEL_WRITE
+
+; 打印.write段中向数据段写入的那个字符串
+[SECTION .print]
+ALIGN 32
+[BITS 32]
+LABEL_PRINT:
+	mov ax, SelectorData
+	mov ds, ax
+	mov esi, 0
+	mov ax, SelectorVideo
+	mov gs, ax
+	mov edi, 0
+
+	; 显示一个字符串
+	mov	ah, 0Ch			; 0000: 黑底    1100: 红字
+	cld
+.print_string:
+	lodsb
+	test al, al
+	jz .end_print_string
+	mov [gs:edi], ax
+	add edi, 2
+	jmp .print_string
+.end_print_string:
+	jmp SelectorLDTCodeA:0
+
+SegPrintLen equ $ - LABEL_PRINT
