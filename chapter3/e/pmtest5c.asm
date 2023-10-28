@@ -25,6 +25,8 @@ LABEL_DESC_TSS:        Descriptor 0,          TSSLen-1, DA_386TSS
 LABEL_DESC_VIDEO:      Descriptor 0B8000h,     0ffffh, DA_DRW+DA_DPL3
 ; 我自己加的
 LABEL_DESC_WRITE:      Descriptor 0,  SegWriteLen - 1, DA_C + DA_32
+LABEL_DESC_MYRING3:    Descriptor 0,  SegMyring3Len - 1, DA_C+DA_32+DA_DPL3
+LABEL_DESC_MYRING0:    Descriptor 0,  SegMyring0Len - 1, DA_CCO+DA_32
 
 ; 门                               目标选择子,偏移,DCount, 属性
 LABEL_CALL_GATE_TEST: Gate SelectorCodeDest,   0,     0, DA_386CGate+DA_DPL3
@@ -48,6 +50,8 @@ SelectorLDT		equ	LABEL_DESC_LDT		- LABEL_GDT
 SelectorTSS		equ	LABEL_DESC_TSS		- LABEL_GDT
 SelectorVideo		equ	LABEL_DESC_VIDEO	- LABEL_GDT
 SelectorWrite		equ LABEL_DESC_WRITE - LABEL_GDT
+SelectorMyring3		equ LABEL_DESC_MYRING3 - LABEL_GDT + SA_RPL3
+SelectorMyring0		equ LABEL_DESC_MYRING0 - LABEL_GDT
 
 SelectorCallGateTest	equ	LABEL_CALL_GATE_TEST	- LABEL_GDT + SA_RPL3
 ; END of [SECTION .gdt]
@@ -254,6 +258,26 @@ LABEL_BEGIN:
 	mov	byte [LABEL_LDT_DESC_PRINT + 4], al
 	mov	byte [LABEL_LDT_DESC_PRINT + 7], ah
 
+	; 初始化Myring3描述符
+	xor	eax, eax
+	mov	ax, ds
+	shl	eax, 4
+	add	eax, LABEL_MYRING3
+	mov	word [LABEL_DESC_MYRING3 + 2], ax
+	shr	eax, 16
+	mov	byte [LABEL_DESC_MYRING3 + 4], al
+	mov	byte [LABEL_DESC_MYRING3 + 7], ah
+
+	; 初始化Myring0描述符
+	xor	eax, eax
+	mov	ax, ds
+	shl	eax, 4
+	add	eax, LABEL_MYRING0
+	mov	word [LABEL_DESC_MYRING0 + 2], ax
+	shr	eax, 16
+	mov	byte [LABEL_DESC_MYRING0 + 4], al
+	mov	byte [LABEL_DESC_MYRING0 + 7], ah
+
 	; 为加载 GDTR 作准备
 	xor	eax, eax
 	mov	ax, ds
@@ -277,6 +301,7 @@ LABEL_BEGIN:
 	or	eax, 1
 	mov	cr0, eax
 
+	xchg bx, bx
 	; 真正进入保护模式
 	jmp	dword SelectorCode32:0	; 执行这一句会把 SelectorCode32 装入 cs, 并跳转到 Code32Selector:0  处
 
@@ -305,12 +330,7 @@ LABEL_REAL_ENTRY:		; 从保护模式跳回到实模式就到了这里
 [BITS	32]
 
 LABEL_SEG_CODE32:
-	; Load LDT
 	xchg bx, bx
-	mov	ax, SelectorLDT
-	lldt	ax
-
-	jmp SelectorWrite:0
 
 	mov	ax, SelectorData
 	mov	ds, ax			; 数据段选择子
@@ -341,16 +361,25 @@ LABEL_SEG_CODE32:
 
 	call	DispReturn
 
+	xchg bx, bx
+
 	mov	ax, SelectorTSS
 	ltr	ax
+
+	xchg bx, bx
 
 	push	SelectorStack3
 	push	TopOfStack3
 	push	SelectorCodeRing3
 	push	0
-	retf
+	retf	; 记住高特权->低特权用retf, 所以这个混蛋写法会自动跳到.ring3段
 
 	ud2	; should never arrive here
+
+	; Load LDT
+	mov	ax, SelectorLDT
+	lldt	ax
+	jmp SelectorWrite:0
 
 	; 测试调用门（无特权级变换），将打印字母 'C'
 	call	SelectorCallGateTest:0
@@ -465,10 +494,13 @@ LABEL_CODE_RING3:
 	mov	ax, SelectorVideo
 	mov	gs, ax
 
-	mov	edi, (80 * 14 + 0) * 2
+	mov	edi, (80 * 2 + 0) * 2
 	mov	ah, 0Ch
 	mov	al, '3'
 	mov	[gs:edi], ax
+
+	; 实现特权级切换
+	call SelectorMyring3:0
 
 	call	SelectorCallGateTest:0
 
@@ -520,3 +552,21 @@ LABEL_PRINT:
 	jmp SelectorLDTCodeA:0
 
 SegPrintLen equ $ - LABEL_PRINT
+
+[SECTION .myring3]
+ALIGN 32
+[BITS 32]
+LABEL_MYRING3:
+	add eax, 3
+	jmp SelectorMyring0:0
+
+SegMyring3Len equ $ - LABEL_MYRING3
+
+[SECTION .myring0]
+ALIGN 32
+[BITS 32]
+LABEL_MYRING0:
+	sub eax, 3
+	retf
+
+SegMyring0Len equ $ - LABEL_MYRING0
