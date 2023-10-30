@@ -60,7 +60,7 @@ _szReturn			db	0Ah, 0
 ; 变量
 _wSPValueInRealMode		dw	0
 _dwMCRNumber:			dd	0	; Memory Check Result
-_dwDispPos:			dd	(80 * 6 + 0) * 2	; 屏幕第 6 行, 第 0 列。
+_dwDispPos:			dd	(80 * 0 + 0) * 2	; 屏幕第 6 行, 第 0 列。
 _dwMemSize:			dd	0
 _ARDStruct:			; Address Range Descriptor Structure
 	_dwBaseAddrLow:		dd	0
@@ -71,6 +71,16 @@ _ARDStruct:			; Address Range Descriptor Structure
 _PageTableNumber		dd	0
 
 _MemChkBuf:	times	256	db	0
+
+_szVirtualAddr db 'Virtual address: ', 0
+_szPageDirBaseAddr db 'Page diretory base address: ', 0
+_szPageTableBaseAddr db 'Page table base address: ', 0
+_szPageBaseAddr db 'Page base address: ', 0
+_szPhysicAddr db 'Physic address: ', 0
+_szError db 'It seems that the page doesnt exist', 0
+_dwPageDirectoryBaseAddr dd 0
+_dwPageTableBaseAddr dd 0
+_dwPageBaseAddr dd 0
 
 ; 保护模式下使用这些符号
 szPMMessage		equ	_szPMMessage	- $$
@@ -88,6 +98,16 @@ ARDStruct		equ	_ARDStruct	- $$
 	dwType		equ	_dwType		- $$
 MemChkBuf		equ	_MemChkBuf	- $$
 PageTableNumber		equ	_PageTableNumber- $$
+
+szVirtualAddr equ _szVirtualAddr - $$
+szPageDirBaseAddr equ _szPageDirBaseAddr - $$
+szPageTableBaseAddr equ _szPageTableBaseAddr - $$
+szPageBaseAddr equ _szPageBaseAddr - $$
+szPhysicAddr equ _szPhysicAddr - $$
+szError equ _szError - $$
+dwPageDirectoryBaseAddr equ _dwPageDirectoryBaseAddr - $$
+dwPageTableBaseAddr equ _dwPageTableBaseAddr - $$
+dwPageBaseAddr equ _dwPageBaseAddr - $$
 
 DataLen			equ	$ - LABEL_DATA
 ; END of [SECTION .data1]
@@ -224,7 +244,6 @@ LABEL_REAL_ENTRY:		; 从保护模式跳回到实模式就到了这里
 
 [SECTION .s32]; 32 位代码段. 由实模式跳入.
 [BITS	32]
-
 LABEL_SEG_CODE32:
 	mov	ax, SelectorData
 	mov	ds, ax			; 数据段选择子
@@ -338,9 +357,17 @@ PagingDemo:
 
 	call	SetupPaging		; 启动分页
 
+	push LinearAddrDemo			; 测试virtual 2 physic
+	call FromVirtualToPhysical
+	add esp, 4
+
 	call	SelectorFlatC:ProcPagingDemo
 	call	PSwitch			; 切换页目录，改变地址映射关系
 	call	SelectorFlatC:ProcPagingDemo
+
+	push LinearAddrDemo
+	call FromVirtualToPhysical
+	add esp, 4
 
 	ret
 ; ---------------------------------------------------------------------------
@@ -474,7 +501,124 @@ DispMemSize:
 	pop	edi
 	pop	esi
 	ret
+
 ; ---------------------------------------------------------------------------
+; 给定一个虚拟地址，返回从该虚拟地址到物理地址的计算过程，如果该地址不存在，返回错误提示
+; 参数：用户指定的虚拟地址
+; 返回值：无
+FromVirtualToPhysical:
+	push ebp			; 新的栈帧
+	mov ebp, esp
+
+	push eax			; 保护环境，人人有责
+	push ebx
+	push ecx
+	push edx
+	push gs
+	push es
+
+	mov eax, cr0		; 暂时关闭分页机制，确保访问的线性地址等同于物理地址
+	and eax, 7FFFFFFFh
+	mov cr0, eax
+
+	mov ax, SelectorVideo
+	mov gs, ax
+	mov ax, SelectorFlatRW
+	mov es, ax
+
+	call DispReturn
+	push szVirtualAddr
+	call DispStr
+	add esp, 4
+	push dword ss:[ebp + 8]
+	call DispInt
+	add esp, 4
+	call DispReturn
+
+	push szPageDirBaseAddr		; 打印页目录基址
+	call DispStr
+	add esp, 4
+	mov eax, cr3
+	and eax, 0FFFFF000h
+	mov [dwPageDirectoryBaseAddr], eax
+	push dword [dwPageDirectoryBaseAddr]
+	call DispInt
+	add esp, 4
+	call DispReturn
+
+	push szPageTableBaseAddr
+	call DispStr
+	add esp, 4
+	mov eax, dword ss:[ebp + 8]	; eax = 线性地址
+	shr eax, 22					; eax = 页目录中的下标，下标不会超过1024
+	mov ebx, [dwPageDirectoryBaseAddr]			; ebx = 页目录基址
+	shl eax, 2
+	add ebx, eax				; ebx = PDE地址
+	mov ecx, dword es:[ebx]		; ecx = 页表信息
+	mov edx, ecx
+	and edx, 1					; 检查p位
+	jz .error_handler
+	and ecx, 0FFFFF000h			; ecx = 页表基址
+	mov [dwPageTableBaseAddr], ecx
+	push ecx
+	call DispInt
+	add esp, 4
+	call DispReturn
+
+	push szPageBaseAddr
+	call DispStr
+	add esp, 4
+	mov eax, dword ss:[ebp + 8]	; eax = 页表中的下标，下标不会超过1024
+	shr eax, 12
+	and eax, 3FFh
+	mov ebx, [dwPageTableBaseAddr]	; ebx = 页表基址
+	shl eax, 2
+	add ebx, eax			; ebx = PTE地址
+	mov ecx, dword es:[ebx]	; ecx = 物理页信息
+	mov edx, ecx			; 暂存
+	and edx, 1				; 检查p位
+	jz .error_handler
+	and ecx, 0FFFFF000h		; 获取物理页的基址
+	mov [dwPageBaseAddr], ecx
+	push ecx
+	call DispInt
+	add esp, 4
+	call DispReturn
+
+	push szPhysicAddr
+	call DispStr
+	add esp, 4
+	mov eax, [dwPageBaseAddr]	; eax = 物理页基址
+	mov ebx, ss:[ebp + 8]		; ebx = 虚拟地址
+	and ebx, 00000FFFh			; ebx = 物理页中的偏移
+	add eax, ebx				; eax = 物理地址
+	push eax
+	call DispInt
+	add esp, 4
+	call DispReturn
+	jmp .return
+	
+.error_handler:
+	push szError
+	call DispStr
+	add esp, 4
+
+.return:
+	mov eax, cr0		; 重启分页机制
+	or eax, 80000000h
+	mov cr0, eax
+
+	pop es
+	pop gs
+	pop edx
+	pop ecx
+	pop ebx
+	pop eax
+	pop ebp				; 恢复栈帧
+	ret
+
+; ---------------------------------------------------------------------------
+
 
 %include	"lib.inc"	; 库函数
 
