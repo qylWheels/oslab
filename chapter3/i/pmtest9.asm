@@ -105,13 +105,14 @@ ALIGN	32
 LABEL_IDT:
 ; 门                        目标选择子,            偏移, DCount, 属性
 %rep 32
-		Gate	SelectorCode32, SpuriousHandler,      0, DA_386IGate
+			Gate	SelectorCode32, SpuriousHandler,      0, DA_386IGate
 %endrep
 .020h:		Gate	SelectorCode32,    ClockHandler,      0, DA_386IGate
 %rep 95
-		Gate	SelectorCode32, SpuriousHandler,      0, DA_386IGate
+			Gate	SelectorCode32, SpuriousHandler,      0, DA_386IGate
 %endrep
 .080h:		Gate	SelectorCode32,  UserIntHandler,      0, DA_386IGate
+.081h		Gate	SelectorCode32,    MyIntHandler,	  0, DA_386IGate
 
 IdtLen		equ	$ - LABEL_IDT
 IdtPtr		dw	IdtLen - 1	; 段界限
@@ -285,7 +286,7 @@ LABEL_SEG_CODE32:
 
 	call	Init8259A
 
-	int	080h
+	int	081h
 	sti
 	jmp	$
 
@@ -386,6 +387,7 @@ io_delay:
 ; int handler ---------------------------------------------------------------
 _ClockHandler:
 ClockHandler	equ	_ClockHandler - $$
+	mov ah, 0Ch
 	inc	byte [gs:((80 * 0 + 70) * 2)]	; 屏幕第 0 行, 第 70 列。
 	mov	al, 20h
 	out	20h, al				; 发送 EOI
@@ -405,6 +407,25 @@ SpuriousHandler	equ	_SpuriousHandler - $$
 	mov	[gs:((80 * 0 + 75) * 2)], ax	; 屏幕第 0 行, 第 75 列。
 	jmp	$
 	iretd
+
+_MyIntHandler:
+MyIntHandler equ _MyIntHandler - $$
+	mov ah, 0Ch				; 黑底红字
+	mov ecx, 8
+	mov esi, string
+	mov edi, (80 * 10 + 0) * 2
+print:
+	mov al, cs:[esi]
+	mov gs:[edi], ax
+	add esi, 1
+	add edi, 2
+	loop print
+
+	iretd
+
+_string:
+string equ _string - $$
+	db "Aminoas!", 0
 ; ---------------------------------------------------------------------------
 
 ; 启动分页机制 --------------------------------------------------------------
