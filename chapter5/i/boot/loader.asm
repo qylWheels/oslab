@@ -366,6 +366,24 @@ LABEL_PM_START:
 
 	call	InitKernel
 
+	xchg bx, bx
+	mov dword [dwDispPos], (80 * 0 + 0) * 2
+	push szAsciiPattern1	; print ascii pattern "hello"
+	call DispStr
+	add esp, 4
+	push szAsciiPattern2
+	call DispStr
+	add esp, 4
+	push szAsciiPattern3
+	call DispStr
+	add esp, 4
+	push szAsciiPattern4
+	call DispStr
+	add esp, 4
+	push szAsciiPattern5
+	call DispStr
+	add esp, 4
+
 	;jmp	$
 
 	;***************************************************************
@@ -752,6 +770,12 @@ LABEL_DATA:
 _szMemChkTitle:			db	"BaseAddrL BaseAddrH LengthLow LengthHigh   Type", 0Ah, 0
 _szRAMSize:			db	"RAM size:", 0
 _szReturn:			db	0Ah, 0
+_szAsciiPattern1:	db "    __  __     ____    ", 0
+_szAsciiPattern2:	db "   / / / /__  / / /___ ", 0
+_szAsciiPattern3:	db "  / /_/ / _ \/ / / __ \", 0
+_szAsciiPattern4:	db " / __  /  __/ / / /_/ /", 0
+_szAsciiPattern5:	db "/_/ /_/\___/_/_/\____/ ", 0
+
 ;; 变量
 _dwMCRNumber:			dd	0	; Memory Check Result
 _dwDispPos:			dd	(80 * 6 + 0) * 2	; 屏幕第 6 行, 第 0 列。
@@ -766,8 +790,14 @@ _MemChkBuf:	times	256	db	0
 ;
 ;; 保护模式下使用这些符号
 szMemChkTitle		equ	BaseOfLoaderPhyAddr + _szMemChkTitle
-szRAMSize		equ	BaseOfLoaderPhyAddr + _szRAMSize
-szReturn		equ	BaseOfLoaderPhyAddr + _szReturn
+szRAMSize			equ	BaseOfLoaderPhyAddr + _szRAMSize
+szReturn			equ	BaseOfLoaderPhyAddr + _szReturn
+szAsciiPattern1		equ BaseOfLoaderPhyAddr + _szAsciiPattern1
+szAsciiPattern2		equ BaseOfLoaderPhyAddr + _szAsciiPattern2
+szAsciiPattern3		equ BaseOfLoaderPhyAddr + _szAsciiPattern3
+szAsciiPattern4		equ BaseOfLoaderPhyAddr + _szAsciiPattern4
+szAsciiPattern5		equ BaseOfLoaderPhyAddr + _szAsciiPattern5
+
 dwDispPos		equ	BaseOfLoaderPhyAddr + _dwDispPos
 dwMemSize		equ	BaseOfLoaderPhyAddr + _dwMemSize
 dwMCRNumber		equ	BaseOfLoaderPhyAddr + _dwMCRNumber
