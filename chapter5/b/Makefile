@@ -6,9 +6,9 @@
 ASM		= nasm
 CC		= gcc
 LD		= ld
-ASMFLAGS	= -f elf
-CFLAGS		= -c
-LDFLAGS		= -s
+ASMFLAGS	= -f elf32
+CFLAGS		= -fno-stack-protector -m32 -c
+LDFLAGS		= -m elf_i386 -s
 
 # This Program
 BIN		= foobar
