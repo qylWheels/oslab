@@ -366,23 +366,31 @@ LABEL_PM_START:
 
 	call	InitKernel
 
-	xchg bx, bx
-	mov dword [dwDispPos], (80 * 0 + 0) * 2
+	mov dword [dwDispPos], (80 * 18 + 0) * 2
 	push szAsciiPattern1	; print ascii pattern "hello"
 	call DispStr
 	add esp, 4
+	call DispReturn
+
 	push szAsciiPattern2
 	call DispStr
 	add esp, 4
+	call DispReturn
+
 	push szAsciiPattern3
 	call DispStr
 	add esp, 4
+	call DispReturn
+
 	push szAsciiPattern4
 	call DispStr
 	add esp, 4
+	call DispReturn
+
 	push szAsciiPattern5
 	call DispStr
 	add esp, 4
+	call DispReturn
 
 	;jmp	$
 
