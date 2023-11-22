@@ -8,6 +8,8 @@
 #ifndef	_ORANGES_CONST_H_
 #define	_ORANGES_CONST_H_
 
+/* NULL */
+#define NULL ((void *)0)
 
 /* EXTERN is defined as extern except in global.c */
 #define EXTERN extern
@@ -31,5 +33,9 @@
 #define INT_S_CTL     0xA0 /* I/O port for second interrupt controller<Slave>  */
 #define INT_S_CTLMASK 0xA1 /* setting bits in this port disables ints <Slave>  */
 
+/* physical memory management */
+#define PAGE_SIZE 4096
+#define PAGE_ALLOCED 1
+#define PAGE_FREE 0
 
 #endif /* _ORANGES_CONST_H_ */

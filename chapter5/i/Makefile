@@ -24,7 +24,7 @@ DASMFLAGS	= -u -o $(ENTRYPOINT) -e $(ENTRYOFFSET)
 # This Program
 ORANGESBOOT	= boot/boot.bin boot/loader.bin
 ORANGESKERNEL	= kernel.bin
-OBJS		= kernel/kernel.o kernel/start.o kernel/i8259.o kernel/global.o kernel/protect.o lib/klib.o lib/kliba.o lib/string.o
+OBJS		= kernel/kernel.o kernel/start.o kernel/i8259.o kernel/global.o kernel/protect.o kernel/pmm.o lib/klib.o lib/kliba.o lib/string.o
 DASMOUTPUT	= kernel.bin.asm
 
 # All Phony Targets
@@ -81,6 +81,9 @@ kernel/global.o : kernel/global.c
 	$(CC) $(CFLAGS) -o $@ $<
 
 kernel/protect.o : kernel/protect.c
+	$(CC) $(CFLAGS) -o $@ $<
+
+kernel/pmm.o : kernel/pmm.c
 	$(CC) $(CFLAGS) -o $@ $<
 
 lib/klib.o : lib/klib.c

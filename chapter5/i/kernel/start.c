@@ -41,4 +41,33 @@ PUBLIC void cstart()
 	init_prot();
 
 	disp_str("-----\"cstart\" ends-----\n");
+
+	disp_pos = 0;
+	pmm_init();
+	void *phy_page = alloc_page();
+	disp_str("physical page base addr: ");
+	disp_int((int)phy_page);
+	disp_str("\n");
+
+	for (int i = 0; i < 20; i += 1) {
+		phy_page = alloc_page();
+		disp_str("physical page base addr: ");
+		disp_int((int)phy_page);
+		disp_str("\n");
+	}
+	
+	// disp_str("physical page status: ");
+	// if (get_page_status(phy_page) == PAGE_FREE) {
+	// 	disp_str("free\n");
+	// } else {
+	// 	disp_str("allocated\n");
+	// }
+
+	// free_page(phy_page);
+	// disp_str("physical page status: ");
+	// if (get_page_status(phy_page) == PAGE_FREE) {
+	// 	disp_str("free\n");
+	// } else {
+	// 	disp_str("allocated\n");
+	// }
 }
