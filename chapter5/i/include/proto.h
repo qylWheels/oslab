@@ -21,4 +21,6 @@ PUBLIC void *alloc_page();
 PUBLIC void free_page(void *base);
 PUBLIC u8 get_page_status(void *base);
 
+PUBLIC void toggle_my_int();
+
 #endif /* _ORANGE_PROTO_H_ */

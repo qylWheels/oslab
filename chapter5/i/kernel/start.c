@@ -49,12 +49,8 @@ PUBLIC void cstart()
 	disp_int((int)phy_page);
 	disp_str("\n");
 
-	for (int i = 0; i < 20; i += 1) {
-		phy_page = alloc_page();
-		disp_str("physical page base addr: ");
-		disp_int((int)phy_page);
-		disp_str("\n");
-	}
+	int a = 5 / 0;
+	disp_int(a);
 	
 	// disp_str("physical page status: ");
 	// if (get_page_status(phy_page) == PAGE_FREE) {

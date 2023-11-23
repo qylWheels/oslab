@@ -11,6 +11,7 @@ SELECTOR_KERNEL_CS	equ	8
 ; 导入函数
 extern	cstart
 extern	exception_handler
+extern  my_int_handler
 extern	spurious_irq
 
 ; 导入全局变量
@@ -43,6 +44,7 @@ global	stack_exception
 global	general_protection
 global	page_fault
 global	copr_error
+global  my_int
 global  hwint00
 global  hwint01
 global  hwint02
@@ -59,6 +61,7 @@ global  hwint12
 global  hwint13
 global  hwint14
 global  hwint15
+global  toggle_my_int
 
 _start:
 	; 此时内存看上去是这样的（更详细的内存情况在 LOADER.ASM 中有说明）：
@@ -263,6 +266,11 @@ copr_error:
 	push	0xFFFFFFFF	; no err code
 	push	16		; vector_no	= 10h
 	jmp	exception
+my_int:	; vec_no = 81
+	call my_int_handler
+	hlt
+toggle_my_int:
+	int 0
 
 exception:
 	call	exception_handler
